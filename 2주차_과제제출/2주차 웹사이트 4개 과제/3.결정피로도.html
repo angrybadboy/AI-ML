@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오늘의 결정 피로도 측정기</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F8FAFC; --card:#fff; --border:#E2E8F0;
+  --txt:#1E293B; --txt2:#64748B;
+  --accent:#3B82F6; --shadow:rgba(0,0,0,0.08);
+  --bat:#10B981; --bat-bg:#ECFDF5; --bat-text:#065F46;
+  --header-bg:#fff;
+}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;
+  min-height:100vh;transition:background .6s ease,color .3s;
+}
+.mono{font-family:'JetBrains Mono','Fira Code','Courier New',monospace}
+
+/* ── Screen ── */
+.screen{display:none;opacity:0;transition:opacity .4s ease;min-height:100vh}
+.screen.active{display:block}
+.screen.visible{opacity:1}
+
+/* ── Floating point animation ── */
+.fp-anim{
+  position:fixed;pointer-events:none;z-index:9999;
+  font-size:15px;font-weight:800;
+  color:var(--bat);font-family:'JetBrains Mono',monospace;
+  animation:fp-fly .9s ease-out forwards;
+}
+@keyframes fp-fly{
+  0%{opacity:1;transform:translateY(0) scale(1)}
+  100%{opacity:0;transform:translateY(-60px) scale(.7)}
+}
+
+/* ══════════════════════
+   INTRO
+══════════════════════ */
+#s-intro{
+  display:flex;flex-direction:column;align-items:center;
+  padding:60px 20px 80px;
+  background:linear-gradient(180deg,#f0f9ff 0%,var(--bg) 60%);
+}
+.intro-badge{
+  display:inline-block;background:#EFF6FF;color:var(--accent);
+  border:1px solid #BFDBFE;border-radius:20px;
+  font-size:12px;font-weight:600;padding:5px 14px;
+  letter-spacing:.05em;margin-bottom:28px;
+}
+#typed-el{
+  font-size:clamp(24px,4.5vw,46px);font-weight:800;
+  text-align:center;letter-spacing:-.02em;line-height:1.2;
+  margin-bottom:20px;min-height:1.3em;
+}
+.cursor{
+  display:inline-block;width:3px;height:.85em;background:var(--accent);
+  animation:blink .7s step-end infinite;vertical-align:middle;margin-left:1px;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.intro-sub{
+  color:var(--txt2);font-size:clamp(13px,1.8vw,16px);
+  text-align:center;max-width:580px;line-height:1.8;margin-bottom:44px;
+}
+.concept-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:14px;width:100%;max-width:780px;margin-bottom:36px;
+}
+.concept-card{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:20px;box-shadow:0 2px 8px var(--shadow);
+}
+.cc-icon{font-size:28px;margin-bottom:10px}
+.cc-title{font-size:14px;font-weight:700;margin-bottom:6px}
+.cc-text{font-size:12px;color:var(--txt2);line-height:1.65}
+.time-card{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:16px 24px;text-align:center;margin-bottom:32px;
+  width:100%;max-width:440px;
+}
+.tc-label{font-size:12px;color:var(--txt2);margin-bottom:4px}
+.tc-time{font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--accent)}
+.tc-day{font-size:13px;color:var(--txt2);margin-top:5px}
+.tc-bar{height:6px;background:#E2E8F0;border-radius:3px;margin-top:10px;overflow:hidden}
+.tc-fill{height:100%;border-radius:3px;background:var(--accent);transition:width .5s}
+.btn-primary{
+  background:var(--accent);color:#fff;border:none;
+  padding:14px 40px;border-radius:12px;font-size:16px;font-weight:700;
+  cursor:pointer;transition:transform .15s,box-shadow .15s;
+  box-shadow:0 4px 16px rgba(59,130,246,.25);
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(59,130,246,.35)}
+.intro-footer{margin-top:14px;font-size:12px;color:var(--txt2)}
+
+/* ══════════════════════
+   INPUT
+══════════════════════ */
+#s-input{padding:0 0 80px}
+.input-header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(248,250,252,.95);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  padding:14px 20px;
+}
+.ih-inner{max-width:860px;margin:0 auto}
+.ih-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.ih-title{font-size:14px;font-weight:700}
+.ih-count{font-size:13px;color:var(--txt2)}
+.ih-count span{font-weight:800;color:var(--bat);font-family:'JetBrains Mono',monospace}
+
+/* Battery bar */
+.battery-bar{
+  display:flex;align-items:center;gap:10px;
+}
+.bat-icon{font-size:20px;transition:all .3s}
+.bat-icon.blinking{animation:batblink .6s step-end infinite}
+@keyframes batblink{0%,100%{opacity:1}50%{opacity:.2}}
+.bat-track{
+  flex:1;height:18px;background:#E2E8F0;border-radius:10px;
+  overflow:hidden;position:relative;
+}
+.bat-fill{
+  height:100%;border-radius:10px;
+  background:var(--bat);
+  transition:width .5s ease,background .6s ease;
+}
+.bat-pct{
+  font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;
+  color:var(--bat);min-width:44px;text-align:right;transition:color .3s;
+}
+
+.input-body{max-width:860px;margin:0 auto;padding:24px 20px}
+.input-hint{
+  background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;
+  padding:12px 16px;font-size:13px;color:#1E40AF;margin-bottom:22px;
+}
+
+/* Category grid */
+.cat-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:12px;margin-bottom:24px;
+}
+.cat-wrap{}
+.cat-card{
+  background:var(--card);border:2px solid var(--border);border-radius:12px;
+  overflow:hidden;transition:border-color .2s,box-shadow .2s;cursor:pointer;
+}
+.cat-card.open{border-color:var(--accent)}
+.cat-card:hover{box-shadow:0 4px 14px var(--shadow)}
+.cat-head{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 16px;user-select:none;
+}
+.cat-icon{font-size:22px;flex-shrink:0}
+.cat-info{flex:1}
+.cat-name{font-size:14px;font-weight:700}
+.cat-cnt{font-size:11px;color:var(--txt2);margin-top:1px}
+.cat-cnt span{font-weight:700;color:var(--accent)}
+.cat-arrow{font-size:11px;color:var(--txt2);transition:transform .25s;flex-shrink:0}
+.cat-card.open .cat-arrow{transform:rotate(180deg)}
+
+.cat-items{
+  max-height:0;overflow:hidden;
+  transition:max-height .35s ease;
+  border-top:0px solid var(--border);
+}
+.cat-card.open .cat-items{
+  max-height:600px;
+  border-top:1px solid var(--border);
+}
+.item-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;
+  border-bottom:1px solid #F1F5F9;
+  gap:8px;
+  cursor:pointer;
+  transition:background .15s;
+}
+.item-row:last-child{border-bottom:none}
+.item-row:hover{background:#F8FAFC}
+.item-check{
+  width:20px;height:20px;border:2px solid var(--border);border-radius:5px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:background .15s,border-color .15s;
+  font-size:13px;cursor:pointer;
+}
+.item-check.checked{background:var(--accent);border-color:var(--accent);color:#fff}
+.item-text{flex:1;font-size:13px;line-height:1.4}
+.item-pts{
+  font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;
+  color:var(--txt2);flex-shrink:0;white-space:nowrap;
+}
+
+/* Custom input */
+.custom-section{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:18px;margin-bottom:20px;
+}
+.cs-title{font-size:14px;font-weight:700;margin-bottom:12px}
+.cs-row{display:flex;gap:10px;margin-bottom:10px}
+.cs-input{
+  flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;
+  font-size:13px;outline:none;background:var(--bg);color:var(--txt);
+  transition:border-color .15s;
+}
+.cs-input:focus{border-color:var(--accent)}
+.cs-add{
+  padding:10px 16px;background:var(--accent);color:#fff;
+  border:none;border-radius:8px;font-weight:700;font-size:13px;
+  cursor:pointer;white-space:nowrap;transition:opacity .15s;
+}
+.cs-add:hover{opacity:.85}
+.diff-row{display:flex;gap:8px}
+.diff-btn{
+  padding:6px 14px;border:1.5px solid var(--border);border-radius:20px;
+  font-size:12px;font-weight:600;cursor:pointer;background:transparent;
+  color:var(--txt2);transition:all .15s;
+}
+.diff-btn.sel{border-color:var(--accent);color:var(--accent);background:#EFF6FF}
+.custom-list{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.custom-item{
+  display:flex;align-items:center;justify-content:space-between;
+  background:#F8FAFC;border-radius:8px;padding:8px 12px;font-size:13px;
+}
+.ci-del{background:none;border:none;color:#94A3B8;cursor:pointer;font-size:14px;padding:0 2px}
+
+/* Result button */
+.result-btn-wrap{text-align:center;padding-top:8px}
+.btn-result{
+  background:var(--accent);color:#fff;border:none;
+  padding:14px 48px;border-radius:12px;font-size:16px;font-weight:700;
+  cursor:pointer;transition:all .15s;opacity:.4;pointer-events:none;
+  box-shadow:0 4px 16px rgba(59,130,246,.2);
+}
+.btn-result.ready{opacity:1;pointer-events:all}
+.btn-result.ready:hover{transform:translateY(-2px)}
+
+/* ══════════════════════
+   ANALYSIS
+══════════════════════ */
+#s-analysis{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;min-height:100vh;padding:40px 20px;
+  background:linear-gradient(180deg,#f0f9ff 0%,var(--bg) 80%);
+}
+.brain-anim{
+  font-size:80px;margin-bottom:32px;
+  animation:pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.analysis-title{font-size:22px;font-weight:800;margin-bottom:28px;color:var(--txt)}
+.steps-list{display:flex;flex-direction:column;gap:12px;width:100%;max-width:380px}
+.step{
+  display:flex;align-items:center;gap:12px;
+  opacity:0;transform:translateX(-16px);
+  transition:opacity .35s,transform .35s;
+  font-size:14px;
+}
+.step.show{opacity:1;transform:translateX(0)}
+.step-icon{
+  width:28px;height:28px;border-radius:50%;background:#E2E8F0;
+  display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;
+}
+.step.done .step-icon{background:#DCFCE7;color:#16A34A}
+.step.pending .step-icon{background:#FEF9C3;color:#CA8A04;animation:spin 1s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* ══════════════════════
+   RESULT
+══════════════════════ */
+#s-result{padding:60px 20px 80px}
+.result-inner{max-width:780px;margin:0 auto}
+.res-header{text-align:center;margin-bottom:44px}
+.res-title{font-size:clamp(22px,4vw,34px);font-weight:800;margin-bottom:8px}
+.res-sub{font-size:14px;color:var(--txt2)}
+
+/* Battery result */
+.bat-result{
+  background:var(--card);border:2px solid var(--border);border-radius:18px;
+  padding:32px;text-align:center;margin-bottom:28px;
+  transition:border-color .5s;
+}
+.br-icon{font-size:56px;margin-bottom:12px;line-height:1}
+.br-label{font-size:14px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:16px}
+.br-track{
+  height:32px;background:#E2E8F0;border-radius:16px;
+  overflow:hidden;margin:0 auto 10px;max-width:480px;
+}
+.br-fill{
+  height:100%;border-radius:16px;
+  background:var(--bat);transition:width 1.2s ease,background .5s;
+  display:flex;align-items:center;justify-content:flex-end;padding-right:10px;
+}
+.br-fill-txt{font-size:13px;font-weight:800;color:#fff}
+.br-pct{font-size:44px;font-weight:900;font-family:'JetBrains Mono',monospace;color:var(--bat);margin-bottom:6px}
+.br-grade{font-size:22px;font-weight:800;margin-bottom:8px}
+.br-desc{font-size:14px;color:var(--txt2);line-height:1.65;max-width:440px;margin:0 auto 14px}
+.br-stats{display:flex;justify-content:center;gap:24px;flex-wrap:wrap}
+.brs-item{display:flex;flex-direction:column;align-items:center;gap:2px}
+.brs-val{font-size:20px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.brs-label{font-size:11px;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em}
+.br-bench{
+  margin-top:14px;padding-top:14px;border-top:1px solid var(--border);
+  font-size:13px;color:var(--txt2);
+}
+.br-wit{
+  margin-top:10px;font-size:13px;font-weight:600;color:var(--txt);
+  background:#F8FAFC;border-radius:8px;padding:10px 14px;
+  border-left:3px solid var(--bat);
+}
+
+/* Section */
+.section-lbl{
+  font-size:12px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--txt2);margin-bottom:14px;
+  display:flex;align-items:center;gap:8px;
+}
+.section-lbl::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* Bar chart */
+.bar-chart-res{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:22px;margin-bottom:28px;
+}
+.bcr-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;position:relative}
+.bcr-row:last-child{margin-bottom:0}
+.bcr-name{font-size:13px;width:110px;flex-shrink:0;white-space:nowrap}
+.bcr-track{flex:1;height:24px;background:#F1F5F9;border-radius:6px;overflow:hidden;cursor:pointer;position:relative}
+.bcr-fill{
+  height:100%;border-radius:6px;
+  transition:width 1.2s ease;
+  display:flex;align-items:center;justify-content:flex-end;padding-right:6px;
+}
+.bcr-fill-txt{font-size:11px;font-weight:700;color:#fff;white-space:nowrap}
+.bcr-pts{font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--txt2);width:36px;text-align:right;flex-shrink:0}
+.bcr-badge{
+  font-size:10px;padding:2px 7px;background:#FEF2F2;color:#DC2626;
+  border-radius:4px;font-weight:700;flex-shrink:0;
+}
+.bcr-tooltip{
+  display:none;position:absolute;left:0;top:calc(100% + 4px);z-index:10;
+  background:var(--txt);color:#fff;border-radius:8px;padding:10px 12px;
+  font-size:12px;line-height:1.6;min-width:200px;max-width:280px;
+  box-shadow:0 4px 16px rgba(0,0,0,.15);pointer-events:none;
+}
+.bcr-track:hover .bcr-tooltip{display:block}
+
+/* Insights */
+.insights{display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
+.insight-card{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:16px;display:flex;gap:12px;align-items:flex-start;
+}
+.ins-icon{font-size:22px;flex-shrink:0;margin-top:1px}
+.ins-text{font-size:13px;line-height:1.7;color:var(--txt)}
+.ins-title{font-weight:700;margin-bottom:3px}
+
+/* Prescription */
+.rx-card{
+  background:var(--card);border:2px solid var(--bat);border-radius:16px;
+  padding:22px;margin-bottom:28px;transition:border-color .5s;
+}
+.rx-badge{
+  display:inline-block;background:var(--bat-bg);color:var(--bat-text);
+  border-radius:8px;padding:4px 12px;font-size:12px;font-weight:700;
+  margin-bottom:10px;transition:background .5s,color .5s;
+}
+.rx-title{font-size:18px;font-weight:800;margin-bottom:12px}
+.rx-list{display:flex;flex-direction:column;gap:8px}
+.rx-item{
+  display:flex;gap:10px;align-items:flex-start;
+  font-size:13px;line-height:1.65;
+}
+.rx-item-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+
+/* Tomorrow tips */
+.tips-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px;margin-bottom:28px;
+}
+.tip-card{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:16px;
+}
+.tip-num{
+  width:24px;height:24px;background:#EFF6FF;color:var(--accent);
+  border-radius:50%;font-size:12px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;margin-bottom:8px;
+}
+.tip-text{font-size:13px;line-height:1.65;color:var(--txt2)}
+
+/* CTA */
+.res-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.btn-ghost{
+  background:transparent;color:var(--txt2);
+  border:1.5px solid var(--border);border-radius:10px;
+  padding:12px 28px;font-size:14px;font-weight:600;cursor:pointer;
+  transition:border-color .15s,color .15s;
+}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.res-footer{
+  margin-top:32px;font-size:11px;color:var(--txt2);text-align:center;
+  line-height:1.7;max-width:600px;margin-left:auto;margin-right:auto;
+}
+
+/* ── Responsive ── */
+@media(max-width:600px){
+  .cat-grid{grid-template-columns:1fr}
+  .tips-grid{grid-template-columns:1fr}
+  .concept-grid{grid-template-columns:1fr}
+  .br-stats{gap:16px}
+  .bcr-name{width:80px;font-size:12px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ INTRO ═══════════ -->
+<div class="screen active" id="s-intro">
+  <div class="intro-badge">🔋 결정 피로도 측정기</div>
+  <div id="typed-el"><span id="typed-txt"></span><span class="cursor" id="cur-el"></span></div>
+  <p class="intro-sub">우리는 하루 평균 35,000번의 결정을 내립니다. 아침에 뭘 입을지부터 점심 메뉴, 업무 우선순위까지 — 모든 선택은 당신의 정신 에너지를 소모합니다.</p>
+
+  <div class="concept-grid">
+    <div class="concept-card">
+      <div class="cc-icon">🧠</div>
+      <div class="cc-title">결정 피로란?</div>
+      <div class="cc-text">의사결정을 반복할수록 판단력이 떨어지는 심리 현상. 심리학자 Roy Baumeister의 자아 고갈 이론에 기반합니다.</div>
+    </div>
+    <div class="concept-card">
+      <div class="cc-icon">⚡</div>
+      <div class="cc-title">왜 중요한가?</div>
+      <div class="cc-text">피로한 뇌는 충동 구매, 미루기, 나쁜 선택을 하게 됩니다. 결정의 질은 에너지에 비례합니다.</div>
+    </div>
+    <div class="concept-card">
+      <div class="cc-icon">📊</div>
+      <div class="cc-title">연구 근거</div>
+      <div class="cc-text">판사들의 가석방 결정률: 오전 65% → 오후 거의 0%로 하락. (Danziger et al., 2011)</div>
+    </div>
+  </div>
+
+  <div class="time-card">
+    <div class="tc-label">현재 시각</div>
+    <div class="tc-time" id="tc-time">--:--:--</div>
+    <div class="tc-day" id="tc-day">오늘 하루의 --%가 지났습니다</div>
+    <div class="tc-bar"><div class="tc-fill" id="tc-fill" style="width:0%"></div></div>
+  </div>
+
+  <button class="btn-primary" onclick="goInput()">내 결정 피로도 측정하기 →</button>
+  <div class="intro-footer">⏱ 소요 시간: 약 2–3분</div>
+</div>
+
+<!-- ═══════════ INPUT ═══════════ -->
+<div class="screen" id="s-input">
+  <div class="input-header">
+    <div class="ih-inner">
+      <div class="ih-top">
+        <div class="ih-title">🔋 정신 배터리 잔량</div>
+        <div class="ih-count">오늘의 결정 <span id="cnt">0</span>개 등록됨</div>
+      </div>
+      <div class="battery-bar">
+        <div class="bat-icon" id="bat-icon">🔋</div>
+        <div class="bat-track"><div class="bat-fill" id="bat-fill" style="width:100%"></div></div>
+        <div class="bat-pct" id="bat-pct">100%</div>
+      </div>
+    </div>
+  </div>
+  <div class="input-body">
+    <div class="input-hint">💡 오늘 실제로 한 의사결정들을 체크하세요. 최소 3개 이상 선택해야 결과를 볼 수 있습니다.</div>
+    <div class="cat-grid" id="cat-grid"></div>
+
+    <!-- Custom input -->
+    <div class="custom-section">
+      <div class="cs-title">✏️ 기타 결정 직접 추가</div>
+      <div class="cs-row">
+        <input class="cs-input" id="ci-text" placeholder="오늘 내린 다른 결정을 입력하세요..." maxlength="50">
+        <button class="cs-add" onclick="addCustom()">+추가</button>
+      </div>
+      <div class="diff-row">
+        <button class="diff-btn sel" data-pt="2" onclick="setDiff(this,2)">쉬움 (-2)</button>
+        <button class="diff-btn"     data-pt="5" onclick="setDiff(this,5)">보통 (-5)</button>
+        <button class="diff-btn"     data-pt="8" onclick="setDiff(this,8)">어려움 (-8)</button>
+      </div>
+      <div class="custom-list" id="ci-list"></div>
+    </div>
+
+    <div class="result-btn-wrap">
+      <button class="btn-result" id="btn-result" onclick="goAnalysis()">결과 보기 →</button>
+      <div style="font-size:12px;color:var(--txt2);margin-top:8px" id="btn-hint">3개 이상 선택하면 활성화됩니다</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ ANALYSIS ═══════════ -->
+<div class="screen" id="s-analysis">
+  <div class="brain-anim">🧠</div>
+  <div class="analysis-title">분석 중...</div>
+  <div class="steps-list" id="steps-list">
+    <div class="step" id="step-0"><div class="step-icon">⏳</div><span>총 결정 횟수 계산 중...</span></div>
+    <div class="step" id="step-1"><div class="step-icon">⏳</div><span>카테고리별 피로 가중치 적용 중...</span></div>
+    <div class="step" id="step-2"><div class="step-icon">⏳</div><span>시간대별 피로 누적 모델링 중...</span></div>
+    <div class="step" id="step-3"><div class="step-icon">⏳</div><span>결정 유형 패턴 분석 중...</span></div>
+    <div class="step" id="step-4"><div class="step-icon">⏳</div><span>맞춤 처방전 생성 중...</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ RESULT ═══════════ -->
+<div class="screen" id="s-result">
+  <div class="result-inner">
+    <div class="res-header">
+      <div class="res-title">🧠 오늘의 결정 피로도 분석 완료</div>
+      <div class="res-sub">당신의 뇌가 오늘 얼마나 일했는지 알아봤습니다</div>
+    </div>
+
+    <div class="section-lbl">🔋 정신 배터리 현황</div>
+    <div class="bat-result" id="bat-result"></div>
+
+    <div class="section-lbl">📊 카테고리별 에너지 소모</div>
+    <div class="bar-chart-res" id="bar-chart-res"></div>
+
+    <div class="section-lbl">💡 결정 패턴 인사이트</div>
+    <div class="insights" id="insights"></div>
+
+    <div class="section-lbl">📋 맞춤 처방전</div>
+    <div class="rx-card" id="rx-card"></div>
+
+    <div class="section-lbl">🌅 내일을 위한 결정 다이어트</div>
+    <div class="tips-grid" id="tips-grid"></div>
+
+    <div class="res-cta">
+      <button class="btn-ghost" onclick="resetApp()">↩ 다시 측정하기</button>
+      <button class="btn-ghost" onclick="copyResult()">🔗 결과 텍스트 복사</button>
+    </div>
+    <div class="res-footer">이 측정기는 Roy Baumeister의 자아 고갈 이론과 Barry Schwartz의 선택의 역설을 기반으로 한 교육용 시뮬레이션입니다. 정확한 심리 진단 도구가 아닙니다.</div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════
+   DATA
+════════════════════════ */
+const categories = [
+  {id:'food',icon:'🍽️',name:'먹기',color:'#F59E0B',items:[
+    {id:'f1',text:'아침 뭘 먹을지 고민',pts:3},
+    {id:'f2',text:'아침 안 먹을지 먹을지 고민',pts:4},
+    {id:'f3',text:'점심 메뉴 선택',pts:4},
+    {id:'f4',text:'점심 메뉴 선택 (5명 이상 단체)',pts:8},
+    {id:'f5',text:'카페 음료 주문',pts:3},
+    {id:'f6',text:'배달앱에서 메뉴 고르기',pts:7},
+    {id:'f7',text:'간식 먹을지 참을지',pts:3,self:true},
+    {id:'f8',text:'저녁 뭘 먹을지 / 어디서 먹을지',pts:5},
+  ]},
+  {id:'look',icon:'👔',name:'외모 & 준비',color:'#8B5CF6',items:[
+    {id:'l1',text:'오늘 뭘 입을지 선택',pts:4},
+    {id:'l2',text:'날씨 때문에 옷 다시 고민',pts:3},
+    {id:'l3',text:'우산 가져갈지 말지',pts:2},
+    {id:'l4',text:'외출 전 거울 보고 옷 교체',pts:5},
+    {id:'l5',text:'헤어스타일 고민',pts:3},
+  ]},
+  {id:'work',icon:'💼',name:'업무 & 학업',color:'#EF4444',items:[
+    {id:'w1',text:'오늘 뭐부터 할지 우선순위 정하기',pts:7},
+    {id:'w2',text:'이메일/메시지 답장 여부 & 내용',pts:5},
+    {id:'w3',text:'회의에서 발언할지 말지',pts:6},
+    {id:'w4',text:'과제/업무 접근 방식 선택',pts:8},
+    {id:'w5',text:'모르는 거 질문할지 혼자 해결할지',pts:5},
+    {id:'w6',text:'마감 임박 작업 처리 순서',pts:9},
+    {id:'w7',text:'집중 vs 멀티태스킹',pts:4},
+    {id:'w8',text:'오늘 야근할지 / 내일 할지',pts:7,self:true},
+  ]},
+  {id:'digital',icon:'📱',name:'디지털 & 미디어',color:'#3B82F6',items:[
+    {id:'d1',text:'SNS 피드 \'좋아요\' 판단 (다수)',pts:2},
+    {id:'d2',text:'유튜브/넷플릭스에서 뭘 볼지',pts:6},
+    {id:'d3',text:'알림 확인할지 무시할지 (다수)',pts:2},
+    {id:'d4',text:'온라인 쇼핑 비교 & 구매 결정',pts:9},
+    {id:'d5',text:'채팅 답장 톤 & 이모지 선택',pts:3},
+    {id:'d6',text:'앱 구독/해지 결정',pts:7},
+  ]},
+  {id:'social',icon:'🤝',name:'관계 & 사회',color:'#10B981',items:[
+    {id:'s1',text:'약속 수락/거절',pts:6},
+    {id:'s2',text:'대화 중 할 말/안 할 말 판단',pts:5},
+    {id:'s3',text:'갈등 상황에서 대응 방식 결정',pts:10},
+    {id:'s4',text:'선물/선택 대신 해주기',pts:7},
+    {id:'s5',text:'연락할지 말지 고민',pts:4},
+    {id:'s6',text:'부탁 들어줄지 거절할지',pts:7},
+  ]},
+  {id:'life',icon:'🏃',name:'생활 & 건강',color:'#06B6D4',items:[
+    {id:'li1',text:'운동할지 안 할지',pts:6,self:true},
+    {id:'li2',text:'운동 뭘 할지 루틴 결정',pts:4},
+    {id:'li3',text:'교통수단 선택',pts:3},
+    {id:'li4',text:'돈 쓸지 아낄지 (일상 소비)',pts:5},
+    {id:'li5',text:'잠자리 시간 결정',pts:5,self:true},
+    {id:'li6',text:'건강 관련 선택 (약 먹기 등)',pts:3},
+  ]},
+];
+
+const fatigueGrades=[
+  {min:0,max:30,grade:'clear',emoji:'☀️',label:'맑은 정신',bat:'#10B981',batBg:'#ECFDF5',batTxt:'#065F46',desc:'뇌가 아직 상쾌합니다. 중요한 결정을 지금 하세요!',wit:'"오늘의 당신, 아직 최상입니다. 지금이 중요한 결정의 골든타임!"'},
+  {min:31,max:70,grade:'cloudy',emoji:'🌤️',label:'약간의 구름',bat:'#F59E0B',batBg:'#FFFBEB',batTxt:'#92400E',desc:'적당히 사용 중입니다. 아직 괜찮아요.',wit:'"뇌가 약간 흐려지고 있지만, 아직 충분히 작동 중입니다."'},
+  {min:71,max:120,grade:'overcast',emoji:'🌥️',label:'흐림 주의보',bat:'#EF4444',batBg:'#FEF2F2',batTxt:'#991B1B',desc:'슬슬 피로가 쌓이고 있습니다. 중요한 결정은 신중하게.',wit:'"뇌가 \'잠깐, 나 좀 쉬자\'라고 속삭이고 있습니다."'},
+  {min:121,max:180,grade:'storm',emoji:'⛈️',label:'피로 경고',bat:'#EF4444',batBg:'#FEF2F2',batTxt:'#991B1B',desc:'결정 피로가 심각합니다. 지금부터 결정을 최소화하세요.',wit:'"뇌가 파업 예고장을 제출했습니다. 지금부터는 자동조종 모드!"'},
+  {min:181,max:Infinity,grade:'depleted',emoji:'🌪️',label:'고갈 상태',bat:'#7C3AED',batBg:'#F5F3FF',batTxt:'#4C1D95',desc:'뇌가 파업 중입니다. 더 이상의 결정은 후회를 부릅니다.',wit:'"저커버그가 매일 같은 티셔츠를 입는 이유를 오늘 몸소 체험 중이십니다."'},
+];
+
+const prescriptions={
+  clear:{title:'지금이 기회입니다 🎯',items:[
+    {icon:'🎯',text:'미루던 중요한 결정을 지금 하세요. 뇌가 최상의 컨디션입니다.'},
+    {icon:'💡',text:'오늘처럼 결정 수를 제한하는 습관을 유지하세요. 이것이 지속적 퍼포먼스의 비결입니다.'},
+    {icon:'📖',text:'알고 계셨나요? 오바마는 매일 같은 색 정장만 입어 결정 수를 줄였습니다.'},
+  ]},
+  cloudy:{title:'아직 괜찮지만 관리가 필요합니다 🌤️',items:[
+    {icon:'🎯',text:'남은 하루는 결정을 \'일괄 처리\'하세요. 이메일 답장을 모아서 한 번에 처리하면 에너지를 아낄 수 있습니다.'},
+    {icon:'💡',text:'다음 식사는 가장 먼저 눈에 띄는 메뉴로 고르세요. 분석 마비에서 벗어나는 연습입니다.'},
+    {icon:'🔧',text:'2분 안에 결정 안 되면 일단 보류 — 간단한 규칙 하나가 피로를 크게 줄입니다.'},
+  ]},
+  overcast:{title:'중요한 결정은 내일로 미루세요 🌥️',items:[
+    {icon:'🎯',text:'2분 규칙: 2분 안에 결정 안 되면 일단 보류. 미루는 것이 때로는 최선의 선택입니다.'},
+    {icon:'🔧',text:'지금 당장: 핸드폰 알림을 1시간 동안 꺼보세요. 알림 하나하나가 미세한 결정입니다.'},
+    {icon:'⚠️',text:'주의: 지금 온라인 쇼핑하면 충동구매 확률이 평소보다 2배 높습니다. 장바구니는 내일 열어보세요.'},
+  ]},
+  storm:{title:'결정 금지 시간을 선포하세요 ⛈️',items:[
+    {icon:'🎯',text:'남은 하루의 모든 결정을 루틴/규칙에 위임하세요. 결정 자체를 없애는 것이 목표입니다.'},
+    {icon:'1️⃣',text:'저녁은 어제 먹은 것과 같은 걸로 (결정 제거)'},
+    {icon:'2️⃣',text:'다음 1시간 동안 새로운 결정 하지 않기 — 지금 당장 선포하세요.'},
+    {icon:'3️⃣',text:'내일 아침에 해야 할 가장 중요한 결정 1개를 지금 메모해두기. 내일의 나에게 선물하세요.'},
+    {icon:'📖',text:'"결정을 미루는 것은 게으름이 아니라 전략입니다" — 결정 피로 연구자 일동'},
+  ]},
+  depleted:{title:'긴급 회복 모드 🌪️',items:[
+    {icon:'🎯',text:'더 이상의 결정은 동전 던지기에 맡기세요. (진심입니다. 정말로요.)'},
+    {icon:'1️⃣',text:'지금 당장 10분 눈 감기 — 마이크로 리셋. 뇌에게 주는 최소한의 휴가.'},
+    {icon:'2️⃣',text:'물 한 잔 마시기. 탈수만으로도 판단력이 20% 저하됩니다.'},
+    {icon:'3️⃣',text:'남은 결정은 모두 "기본값"으로. 첫 번째 옵션, 어제와 같은 선택이 답입니다.'},
+    {icon:'⚠️',text:'경고: 피로한 상태에서의 중요한 결정은 취소할 수 없는 후회를 만듭니다.'},
+  ]},
+};
+
+const tomorrowTips={
+  work:[
+    '아침 출근하자마자 오늘의 Top 3 우선순위만 적기 (나머진 의식적으로 무시)',
+    '이메일은 10시, 2시, 5시 하루 3번만 확인 (그 외에는 알림 끄기)',
+    '회의에서 "그건 내일 결정합시다"를 두려워하지 마세요 — 가장 강한 한 마디입니다',
+  ],
+  food:[
+    '일주일 점심 메뉴를 일요일에 미리 정하기 (메뉴만 결정, 요리는 안 해도 됨)',
+    '배달앱 즐겨찾기 3개만 남기고 나머진 숨기기 — 선택지를 물리적으로 줄이기',
+    '간식은 서랍에 1종류만 — 고민할 선택지 자체를 없애기',
+  ],
+  digital:[
+    '앱 알림은 카카오톡과 전화만 남기기. 나머지 알림은 모두 끄기',
+    '넷플릭스 오늘의 추천 1위를 무조건 보기 (고르지 않기가 핵심)',
+    '온라인 쇼핑 "장바구니 1일 숙성 규칙" — 오늘 담고 내일 사기',
+  ],
+  social:[
+    '"생각해볼게"는 완벽하게 합리적인 답변입니다. 즉시 결정을 강요받지 마세요.',
+    '모든 약속 요청에 Yes/No가 아닌 "Yes, 날짜는 내일 확인할게" 전략 사용',
+    '하루 1개의 연락만 먼저 시작하기 (나머지는 반응하는 역할만 담당)',
+  ],
+  life:[
+    '운동은 요일별 고정 루틴 정하기 (월: 상체, 화: 하체 등 — 고민 자체를 삭제)',
+    '돈 쓸지 아낄지 고민되면 → 24시간 대기 규칙. 내일도 사고 싶으면 사기',
+    '잠자리 시간 알람 설정 → 알람이 결정을 대신해줍니다',
+  ],
+  look:[
+    '주 5벌 코디를 일요일에 미리 조합해두기 — 아침의 나를 도와주기',
+    '아침 거울은 1번만 (재확인 = 재결정 = 추가 피로의 무한 루프)',
+    '나만의 "유니폼 전략": 가장 자신 있는 기본 코디 3세트를 고정하기',
+  ],
+};
+
+const witTexts={
+  clear:'"오늘의 당신, 아직 최상입니다!"',
+  cloudy:'"뇌가 약간 흐려지고 있지만, 아직 건재합니다."',
+  overcast:'"뇌가 슬슬 퇴근하고 싶다고 합니다."',
+  storm:'"당신의 뇌가 파업 예고장을 제출했습니다."',
+  depleted:'"뇌가 공식 파업에 들어갔습니다. 동전 던지기를 권장합니다."',
+};
+
+/* ════════════════════════
+   STATE
+════════════════════════ */
+const appState={
+  totalPts:0, checked:new Set(), customItems:[],
+  customDiff:2, totalCount:0,
+  catPts:{food:0,look:0,work:0,digital:0,social:0,life:0},
+  catCnt:{food:0,look:0,work:0,digital:0,social:0,life:0},
+};
+
+/* ════════════════════════
+   UTILS
+════════════════════════ */
+function batteryPct(pts){ return Math.max(0,100-Math.round(pts/2)); }
+function getGrade(pts){ return fatigueGrades.find(g=>pts>=g.min&&pts<=g.max)||fatigueGrades[4]; }
+function animCount(el,from,to,dur=900,suffix=''){
+  const s=performance.now();
+  function step(ts){
+    const p=Math.min((ts-s)/dur,1), e=1-Math.pow(1-p,3);
+    const v=Math.round(from+(to-from)*e);
+    el.textContent=v+suffix;
+    if(p<1) requestAnimationFrame(step);
+    else el.textContent=to+suffix;
+  }
+  requestAnimationFrame(step);
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active','visible')});
+  const el=document.getElementById(id);
+  el.classList.add('active');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('visible')));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function updateBatColor(pts){
+  const pct=batteryPct(pts);
+  let bat,batBg,batTxt;
+  if(pct>=70){bat='#10B981';batBg='#ECFDF5';batTxt='#065F46';}
+  else if(pct>=40){bat='#F59E0B';batBg='#FFFBEB';batTxt='#92400E';}
+  else if(pct>=10){bat='#EF4444';batBg='#FEF2F2';batTxt='#991B1B';}
+  else{bat='#7C3AED';batBg='#F5F3FF';batTxt='#4C1D95';}
+
+  document.documentElement.style.setProperty('--bat',bat);
+  document.documentElement.style.setProperty('--bat-bg',batBg);
+  document.documentElement.style.setProperty('--bat-text',batTxt);
+
+  const icon=document.getElementById('bat-icon');
+  if(icon){
+    if(pct<=10) icon.classList.add('blinking');
+    else icon.classList.remove('blinking');
+  }
+}
+
+/* ════════════════════════
+   INTRO
+════════════════════════ */
+const headline='당신의 뇌, 오늘 얼마나 일했나요?';
+let typDone=false;
+(function typeIt(){
+  const el=document.getElementById('typed-txt');
+  let i=0;
+  const iv=setInterval(()=>{
+    el.textContent=headline.slice(0,++i);
+    if(i>=headline.length){clearInterval(iv);typDone=true;}
+  },70);
+})();
+
+function updateClock(){
+  const now=new Date();
+  const h=String(now.getHours()).padStart(2,'0');
+  const m=String(now.getMinutes()).padStart(2,'0');
+  const s=String(now.getSeconds()).padStart(2,'0');
+  const el=document.getElementById('tc-time');
+  if(el) el.textContent=h+':'+m+':'+s;
+
+  const start=6*3600, end=24*3600;
+  const cur=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
+  const pct=Math.min(100,Math.max(0,Math.round((cur-start)/(end-start)*100)));
+  const fillEl=document.getElementById('tc-fill');
+  const dayEl=document.getElementById('tc-day');
+  if(fillEl) fillEl.style.width=pct+'%';
+  if(dayEl) dayEl.textContent=`오늘 하루의 ${pct}%가 지났습니다`;
+}
+updateClock();
+setInterval(updateClock,1000);
+
+/* ════════════════════════
+   INPUT BUILD
+════════════════════════ */
+function buildInput(){
+  const grid=document.getElementById('cat-grid');
+  grid.innerHTML=categories.map(cat=>`
+    <div class="cat-wrap">
+      <div class="cat-card" id="cc-${cat.id}" onclick="toggleCat('${cat.id}')">
+        <div class="cat-head">
+          <div class="cat-icon">${cat.icon}</div>
+          <div class="cat-info">
+            <div class="cat-name">${cat.name}</div>
+            <div class="cat-cnt"><span id="cnt-${cat.id}">0</span>개 선택</div>
+          </div>
+          <div class="cat-arrow">▼</div>
+        </div>
+        <div class="cat-items" id="ci-${cat.id}">
+          ${cat.items.map(it=>`
+            <div class="item-row" onclick="event.stopPropagation();toggle('${cat.id}','${it.id}',${it.pts},event)">
+              <div class="item-check" id="chk-${it.id}"></div>
+              <div class="item-text">${it.text}</div>
+              <div class="item-pts">-${it.pts} ⚡</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function toggleCat(id){
+  const card=document.getElementById('cc-'+id);
+  card.classList.toggle('open');
+}
+
+function toggle(catId,itemId,pts,e){
+  const chk=document.getElementById('chk-'+itemId);
+  const key=catId+'_'+itemId;
+  if(appState.checked.has(key)){
+    appState.checked.delete(key);
+    appState.totalPts-=pts;
+    appState.catPts[catId]-=pts;
+    appState.catCnt[catId]--;
+    appState.totalCount--;
+    chk.classList.remove('checked');
+    chk.textContent='';
+  } else {
+    appState.checked.add(key);
+    appState.totalPts+=pts;
+    appState.catPts[catId]+=pts;
+    appState.catCnt[catId]++;
+    appState.totalCount++;
+    chk.classList.add('checked');
+    chk.textContent='✓';
+    // floating point animation
+    floatPts(pts, e.clientX, e.clientY);
+  }
+  updateBatUI();
+}
+
+function floatPts(pts,x,y){
+  const el=document.createElement('div');
+  el.className='fp-anim';
+  el.textContent='-'+pts+' ⚡';
+  el.style.left=(x-20)+'px';
+  el.style.top=(y-10)+'px';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),950);
+}
+
+function updateBatUI(){
+  const pct=batteryPct(appState.totalPts);
+  const fill=document.getElementById('bat-fill');
+  const pctEl=document.getElementById('bat-pct');
+  const cntEl=document.getElementById('cnt');
+  if(fill) fill.style.width=pct+'%';
+  if(pctEl){ pctEl.textContent=pct+'%'; }
+  if(cntEl) cntEl.textContent=appState.totalCount+appState.customItems.length;
+  updateBatColor(appState.totalPts);
+
+  // category counts
+  categories.forEach(c=>{
+    const el=document.getElementById('cnt-'+c.id);
+    if(el) el.textContent=appState.catCnt[c.id];
+  });
+
+  // result button
+  const total=appState.totalCount+appState.customItems.length;
+  const btn=document.getElementById('btn-result');
+  const hint=document.getElementById('btn-hint');
+  if(total>=3){
+    btn.classList.add('ready');
+    if(hint) hint.style.display='none';
+  } else {
+    btn.classList.remove('ready');
+    if(hint){ hint.style.display='block'; hint.textContent=(3-total)+'개 더 선택하면 활성화됩니다';}
+  }
+}
+
+/* custom input */
+let customDiff=2;
+function setDiff(btn,pts){
+  document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  customDiff=pts;
+}
+function addCustom(){
+  const inp=document.getElementById('ci-text');
+  const txt=inp.value.trim();
+  if(!txt) return;
+  const item={text:txt,pts:customDiff,id:'c'+Date.now()};
+  appState.customItems.push(item);
+  appState.totalPts+=customDiff;
+  inp.value='';
+  renderCustomList();
+  updateBatUI();
+}
+function removeCustom(id){
+  const idx=appState.customItems.findIndex(i=>i.id===id);
+  if(idx>-1){
+    appState.totalPts-=appState.customItems[idx].pts;
+    appState.customItems.splice(idx,1);
+    renderCustomList();
+    updateBatUI();
+  }
+}
+function renderCustomList(){
+  const list=document.getElementById('ci-list');
+  list.innerHTML=appState.customItems.map(i=>`
+    <div class="custom-item">
+      <span>${i.text}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;color:var(--txt2);font-family:monospace">-${i.pts} ⚡</span>
+        <button class="ci-del" onclick="removeCustom('${i.id}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function goInput(){
+  buildInput();
+  showScreen('s-input');
+}
+
+/* ════════════════════════
+   ANALYSIS
+════════════════════════ */
+function goAnalysis(){
+  showScreen('s-analysis');
+  const steps=document.querySelectorAll('.step');
+  steps.forEach(s=>{s.classList.remove('show','done','pending');});
+
+  const total=appState.totalCount+appState.customItems.length;
+  const msgs=[
+    `총 결정 횟수 계산 중... ${total}개 감지`,
+    '카테고리별 피로 가중치 적용 중...',
+    '시간대별 피로 누적 모델링 중...',
+    '결정 유형 패턴 분석 중...',
+    '맞춤 처방전 생성 중...',
+  ];
+
+  let i=0;
+  function nextStep(){
+    if(i>0){
+      const prev=document.getElementById('step-'+(i-1));
+      if(prev){ prev.querySelector('.step-icon').textContent='✅'; prev.classList.add('done'); prev.classList.remove('pending'); }
+    }
+    if(i>=steps.length){ setTimeout(buildAndShowResult,600); return; }
+    const s=document.getElementById('step-'+i);
+    s.querySelector('span').textContent=msgs[i];
+    s.classList.add('show','pending');
+    s.querySelector('.step-icon').textContent='⏳';
+    i++;
+    setTimeout(nextStep, i===steps.length?1000:900);
+  }
+  setTimeout(nextStep,400);
+}
+
+/* ════════════════════════
+   RESULT
+════════════════════════ */
+function buildAndShowResult(){
+  buildResult();
+  showScreen('s-result');
+}
+
+function buildResult(){
+  const pts=appState.totalPts;
+  const pct=batteryPct(pts);
+  const grade=getGrade(pts);
+  const total=appState.totalCount+appState.customItems.length;
+  const avg=95;
+  const diff=Math.round(Math.abs(pts-avg)/avg*100);
+  const moreOrLess=pts>avg?`평균보다 ${diff}% 더 많은 결정`:`평균보다 ${diff}% 적은 결정`;
+
+  // battery result
+  document.getElementById('bat-result').innerHTML=`
+    <div class="br-icon">${grade.emoji}</div>
+    <div class="br-label">🔋 당신의 정신 배터리</div>
+    <div class="br-track"><div class="br-fill" id="br-fill" style="width:0%;background:${grade.bat}"><span class="br-fill-txt" id="br-fill-txt"></span></div></div>
+    <div class="br-pct" id="br-pct" style="color:${grade.bat}">0%</div>
+    <div class="br-grade">${grade.emoji} ${grade.label}</div>
+    <div class="br-desc">${grade.desc}</div>
+    <div class="br-stats">
+      <div class="brs-item"><div class="brs-val" id="br-pts">0</div><div class="brs-label">소모 포인트</div></div>
+      <div class="brs-item"><div class="brs-val">${total}</div><div class="brs-label">등록된 결정</div></div>
+    </div>
+    <div class="br-bench">대한민국 성인 평균(약 95pt) 대비 ${moreOrLess}을 했습니다</div>
+    <div class="br-wit">${grade.wit}</div>`;
+
+  updateBatColor(pts);
+  document.getElementById('bat-result').style.borderColor=grade.bat;
+
+  setTimeout(()=>{
+    const bf=document.getElementById('br-fill');
+    const bpct=document.getElementById('br-pct');
+    const bpts=document.getElementById('br-pts');
+    if(bf){ bf.style.width=pct+'%'; document.getElementById('br-fill-txt').textContent=pct+'%'; }
+    if(bpct) animCount(bpct,0,pct,1000,'%');
+    if(bpts) animCount(bpts,0,pts,900);
+  },200);
+
+  // bar chart
+  const catData=categories.map(c=>({
+    id:c.id,icon:c.icon,name:c.name,color:c.color,
+    pts:appState.catPts[c.id]||0,
+    items:c.items.filter(it=>appState.checked.has(c.id+'_'+it.id)).map(it=>it.text),
+  })).filter(c=>c.pts>0).sort((a,b)=>b.pts-a.pts);
+
+  if(catData.length===0){
+    document.getElementById('bar-chart-res').innerHTML='<div style="color:var(--txt2);font-size:13px;text-align:center;padding:20px">선택된 항목이 없습니다</div>';
+  } else {
+    const maxPts=catData[0].pts;
+    document.getElementById('bar-chart-res').innerHTML=catData.map((c,i)=>{
+      const pct2=pts>0?Math.round(c.pts/pts*100):0;
+      const tooltip=c.items.length>0?c.items.map(t=>`• ${t}`).join('<br>'):'선택된 항목 없음';
+      return `<div class="bcr-row">
+        <div class="bcr-name">${c.icon} ${c.name}</div>
+        <div class="bcr-track">
+          <div class="bcr-fill" id="bcf-${c.id}" style="width:0%;background:${c.color}">
+            <span class="bcr-fill-txt">${pct2}%</span>
+          </div>
+          <div class="bcr-tooltip">${tooltip}</div>
+        </div>
+        <div class="bcr-pts">${c.pts}pt</div>
+        ${i===0?'<div class="bcr-badge">⚠️ 최대</div>':''}
+      </div>`;
+    }).join('');
+
+    setTimeout(()=>{
+      catData.forEach(c=>{
+        const el=document.getElementById('bcf-'+c.id);
+        if(el) el.style.width=(maxPts>0?Math.round(c.pts/maxPts*100):0)+'%';
+      });
+    },300);
+  }
+
+  // insights
+  const insights=[];
+  if(catData.length>0){
+    const topCat=catData[0];
+    const topPct=pts>0?Math.round(topCat.pts/pts*100):0;
+    if(topPct>=40) insights.push({icon:'🏋️',title:'과부하 카테고리 경고',text:`${topCat.icon} ${topCat.name} 결정이 전체 피로의 ${topPct}%를 차지합니다. 이 영역의 결정 자동화가 가장 시급합니다.`});
+  }
+  if((appState.catCnt['food']||0)>=3) insights.push({icon:'🍽️',title:'먹기 결정 과다',text:`식사 관련 결정만 ${appState.catCnt['food']}개! 식단을 미리 정하면 하루 약 20포인트를 절약할 수 있습니다.`});
+  if((appState.catCnt['digital']||0)>=3) insights.push({icon:'📱',title:'디지털 피로 경고',text:'디지털 세계에서의 결정이 조용히 에너지를 빼앗고 있습니다. 알림 끄기를 오늘 당장 시도해보세요.'});
+  if((appState.catCnt['social']||0)>=2) insights.push({icon:'🤝',title:'감정 에너지 소모',text:'관계에서의 결정은 일반 결정보다 감정 에너지까지 함께 소모합니다. 오늘은 혼자만의 시간이 필요할 수 있어요.'});
+  const selfCnt=[...appState.checked].filter(k=>{
+    const [cId,iId]=k.split('_');
+    const cat=categories.find(c=>c.id===cId);
+    return cat&&cat.items.find(i=>i.id===iId&&i.self);
+  }).length;
+  if(selfCnt>=3) insights.push({icon:'⚔️',title:'자기통제 전투',text:`의지력 전투를 ${selfCnt}번이나 치렀군요. 자기통제 결정은 일반 결정보다 2배 피로합니다. 환경 설계로 의지력 소모를 줄이세요.`});
+  if(total>=15) insights.push({icon:'📊',title:'결정 총량 경고',text:'오늘 15개 이상의 결정을 인식하고 있다는 것 자체가 인지 부하가 높다는 신호입니다. 내일은 의식적으로 줄여보세요.'});
+
+  if(insights.length===0) insights.push({icon:'✅',title:'균형 잡힌 하루',text:'특별히 과부하인 영역이 없네요. 균형 잡힌 의사결정 패턴을 보이고 있습니다!'});
+
+  document.getElementById('insights').innerHTML=insights.map(i=>`
+    <div class="insight-card">
+      <div class="ins-icon">${i.icon}</div>
+      <div class="ins-text"><div class="ins-title">${i.title}</div>${i.text}</div>
+    </div>`).join('');
+
+  // prescription
+  const rx=prescriptions[grade.grade]||prescriptions.cloudy;
+  const rxEl=document.getElementById('rx-card');
+  rxEl.style.borderColor=grade.bat;
+  document.documentElement.style.setProperty('--bat',grade.bat);
+  document.documentElement.style.setProperty('--bat-bg',grade.batBg||'#ECFDF5');
+  document.documentElement.style.setProperty('--bat-text',grade.batTxt||'#065F46');
+  rxEl.innerHTML=`
+    <div class="rx-badge">${grade.emoji} ${grade.label}</div>
+    <div class="rx-title">${rx.title}</div>
+    <div class="rx-list">${rx.items.map(i=>`<div class="rx-item"><div class="rx-item-icon">${i.icon}</div><div>${i.text}</div></div>`).join('')}</div>`;
+
+  // tomorrow tips
+  const topCatId=catData.length>0?catData[0].id:'work';
+  const tips=tomorrowTips[topCatId]||tomorrowTips.work;
+  const topCatInfo=categories.find(c=>c.id===topCatId);
+  document.getElementById('tips-grid').innerHTML=`
+    <div style="grid-column:1/-1;font-size:13px;color:var(--txt2);margin-bottom:4px">
+      ${topCatInfo?topCatInfo.icon+' '+topCatInfo.name:''}이 최대 피로 원천이었습니다. 내일을 위한 맞춤 팁:
+    </div>`+
+    tips.map((t,i)=>`<div class="tip-card"><div class="tip-num">${i+1}</div><div class="tip-text">${t}</div></div>`).join('');
+}
+
+/* ════════════════════════
+   RESET / COPY
+════════════════════════ */
+function resetApp(){
+  appState.totalPts=0;
+  appState.checked.clear();
+  appState.customItems=[];
+  appState.totalCount=0;
+  Object.keys(appState.catPts).forEach(k=>appState.catPts[k]=0);
+  Object.keys(appState.catCnt).forEach(k=>appState.catCnt[k]=0);
+  document.documentElement.style.setProperty('--bat','#10B981');
+  document.documentElement.style.setProperty('--bat-bg','#ECFDF5');
+  document.documentElement.style.setProperty('--bat-text','#065F46');
+  showScreen('s-intro');
+}
+
+function copyResult(){
+  const pts=appState.totalPts;
+  const pct=batteryPct(pts);
+  const grade=getGrade(pts);
+  const total=appState.totalCount+appState.customItems.length;
+  const txt=`[오늘의 결정 피로도 측정 결과]\n🔋 배터리 잔량: ${pct}%\n${grade.emoji} 상태: ${grade.label}\n⚡ 소모 포인트: ${pts}pt\n📋 등록된 결정: ${total}개\n\n${grade.desc}`;
+  navigator.clipboard.writeText(txt).then(()=>alert('결과가 복사됐어요!')).catch(()=>alert('복사 실패. 직접 복사해주세요:\n'+txt));
+}
+
+/* init */
+requestAnimationFrame(()=>requestAnimationFrame(()=>document.getElementById('s-intro').classList.add('visible')));
+</script>
+</body>
+</html>

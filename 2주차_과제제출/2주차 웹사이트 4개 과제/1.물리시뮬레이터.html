@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>물리 시뮬레이터 — 고전역학 인터랙티브</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cream: #f5f0e8;
+      --paper: #fdfaf3;
+      --ink:   #1c1c1c;
+      --muted: #5a5a5a;
+      --line:  rgba(0,0,0,0.1);
+      --red:   #b83227;
+      --blue:  #1e5fa3;
+      --green: #1a6b3c;
+    }
+
+    body {
+      background: var(--cream);
+      background-image:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 28px 28px;
+      color: var(--ink);
+      font-family: 'Noto Sans KR', sans-serif;
+      font-weight: 300;
+      min-height: 100vh;
+    }
+
+    /* ── Header ───────────────────────────── */
+    header {
+      background: var(--paper);
+      border-bottom: 2px solid var(--ink);
+      padding: 22px 36px 18px;
+    }
+    .hdr-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+    header h1 em { font-style: normal; color: var(--red); }
+    header p  { font-size: 12px; color: var(--muted); margin-top: 5px; }
+    .hdr-eq {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--muted); opacity: .55;
+      text-align: right; line-height: 1.9;
+    }
+
+    /* ── Tabs ─────────────────────────────── */
+    .tab-row {
+      max-width: 1120px;
+      margin: 22px auto 0;
+      padding: 0 36px;
+      display: flex;
+      gap: 6px;
+    }
+    .tab {
+      padding: 9px 22px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 14px; font-weight: 500;
+      background: var(--paper);
+      border: 1.5px solid rgba(0,0,0,.18);
+      border-bottom: none;
+      border-radius: 6px 6px 0 0;
+      cursor: pointer;
+      color: var(--muted);
+      transition: color .15s, background .15s;
+      position: relative;
+    }
+    .tab:hover { color: var(--ink); }
+    .tab.on { background: #fff; color: var(--ink); border-color: var(--ink); }
+    .tab.on::after { content:''; position:absolute; bottom:-2px; left:0; right:0; height:2px; background:#fff; }
+    .tab[data-p="pendulum"].on    { border-top: 3px solid var(--red); }
+    .tab[data-p="projectile"].on  { border-top: 3px solid var(--blue); }
+    .tab[data-p="wave"].on        { border-top: 3px solid var(--green); }
+
+    /* ── Panel ────────────────────────────── */
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 36px 56px; }
+    .panel {
+      display: none;
+      background: #fff;
+      border: 1.5px solid var(--ink);
+      border-radius: 0 8px 8px 8px;
+    }
+    .panel.on { display: flex; }
+
+    /* canvas side */
+    .cv-side {
+      flex: 1;
+      padding: 18px;
+      border-right: 1.5px solid rgba(0,0,0,.1);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      background: #fafaf7;
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 4px;
+    }
+    .cv-btns { display: flex; gap: 8px; }
+    .btn {
+      padding: 7px 18px;
+      border: 1.5px solid var(--ink);
+      background: transparent;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 13px; font-weight: 500;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all .15s;
+    }
+    .btn:hover { background: var(--ink); color: #fff; }
+    .btn.ghost { border-color: #aaa; color: #888; }
+    .btn.ghost:hover { background: #888; color: #fff; }
+
+    /* control side */
+    .ctrl-side {
+      width: 275px;
+      padding: 22px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .sim-title { font-size: 18px; font-weight: 700; letter-spacing: -.3px; }
+    .sim-desc  { font-size: 12px; color: var(--muted); line-height: 1.75; margin-top: 5px; }
+
+    /* sliders */
+    .sliders { display: flex; flex-direction: column; gap: 14px; }
+    .sg { display: flex; flex-direction: column; gap: 5px; }
+    .sg-head { display: flex; justify-content: space-between; align-items: baseline; }
+    .sg-label { font-size: 13px; font-weight: 500; }
+    .sg-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; color: var(--muted);
+    }
+    input[type=range] {
+      width: 100%; height: 4px;
+      -webkit-appearance: none; appearance: none;
+      background: rgba(0,0,0,.1); border-radius: 2px;
+      outline: none; cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 15px; height: 15px;
+      border-radius: 50%;
+      background: var(--ink);
+      border: 2px solid #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,.25);
+      cursor: pointer;
+    }
+
+    /* readouts */
+    .readouts {
+      background: var(--cream);
+      border-radius: 6px;
+      padding: 13px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .ro { display: flex; flex-direction: column; gap: 2px; }
+    .ro-lbl {
+      font-size: 10px; text-transform: uppercase;
+      letter-spacing: .7px; color: var(--muted); font-weight: 500;
+    }
+    .ro-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 15px; font-weight: 500;
+    }
+    .c-red   { color: var(--red); }
+    .c-blue  { color: var(--blue); }
+    .c-green { color: var(--green); }
+
+    .formula {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--muted); opacity: .7;
+      line-height: 1.9;
+      padding: 10px 12px;
+      border-left: 3px solid rgba(0,0,0,.1);
+    }
+
+    @media (max-width: 780px) {
+      .panel.on { flex-direction: column; }
+      .ctrl-side { width: 100%; }
+      .cv-side { border-right: none; border-bottom: 1.5px solid rgba(0,0,0,.1); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-inner">
+    <div>
+      <h1>물리 <em>시뮬레이터</em></h1>
+      <p>슬라이더를 움직여서 물리 법칙을 직접 느껴보세요</p>
+    </div>
+    <div class="hdr-eq">
+      T = 2π√(L/g) &nbsp;|&nbsp; R = v₀²sin2θ/g<br>
+      y(x,t) = A·sin(kx − ωt) &nbsp;|&nbsp; v = λf
+    </div>
+  </div>
+</header>
+
+<div class="tab-row">
+  <button class="tab on" data-p="pendulum">⚖ 진자 운동</button>
+  <button class="tab"    data-p="projectile">🎯 포물선 운동</button>
+  <button class="tab"    data-p="wave">〰 파동</button>
+</div>
+
+<div class="wrap">
+
+  <!-- ════ 진자 운동 ════ -->
+  <div class="panel on" id="p-pendulum">
+    <div class="cv-side">
+      <canvas id="cv-p" width="640" height="400"></canvas>
+      <div class="cv-btns">
+        <button class="btn" id="pnd-play">일시정지</button>
+        <button class="btn ghost" id="pnd-reset">초기화</button>
+      </div>
+    </div>
+    <div class="ctrl-side">
+      <div>
+        <div class="sim-title">진자 운동</div>
+        <div class="sim-desc">실에 매달린 추의 왕복 운동입니다. 줄 길이가 주기를 결정하고, 초기 각도가 작을수록 주기가 일정해져요.</div>
+      </div>
+      <div class="sliders">
+        <div class="sg">
+          <div class="sg-head"><span class="sg-label">줄 길이 L</span><span class="sg-val" id="pnd-L-v">1.00 m</span></div>
+          <input type="range" id="pnd-L" min="0.2" max="2.5" step="0.05" value="1.0">
+        </div>
+        <div class="sg">
+          <div class="sg-head"><span class="sg-label">초기 각도 θ₀</span><span class="sg-val" id="pnd-A-v">30 °</span></div>
+          <input type="range" id="pnd-A" min="5" max="160" step="1" value="30">
+        </div>
+        <div class="sg">
+          <div class="sg-head"><span class="sg-label">감쇠 계수 b</span><span class="sg-val" id="pnd-B-v">0.10</span></div>
+          <input type="range" id="pnd-B" min="0" max="0.8" step="0.01" value="0.1">
+        </div>
+        <div class="sg">
+          <div class="sg-head"><span class="sg-label">중력 g</span><span class="sg-val" id="pnd-G-v">9.8 m/s²</span></div>
+          <input type="range" id="pnd-G" min="1" max="25" step="0.1" value="9.8">
+        </div>
+      </div>
+      <div class="readouts">
+        <div class="ro"><span class="ro-lbl">현재 각도</span><span class="ro-val c-red" id="rd-pnd-th">0.0°</span></div>
+        <div class="ro"><span class="ro-lbl">주기 T</span><span class="ro-val c-red" id="rd-pnd-T">2.01 s</span></div>
+        <div class="ro"><span class="ro-lbl">각속도 ω</span><span class="ro-val c-red" id="rd-pnd-w">0.00</span></div>
+        <div class="ro"><span class="ro-lbl">역학적 에너지</span><span class="ro-val c-red" id="rd-pnd-E">0.00 J</span></div>
+      </div>
+      <div class="formula">
+        T ≈ 2π√(L/g)<br>
+        α = −(g/L)sinθ − b·ω
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ 포물선 운동 ════ -->
+  <div class="panel" id="p-projectile">
+    <div class="cv-side">
+      <canvas id="cv-pr" width="640" height="400"></canvas>
+      <div class="cv-btns">
+        <button class="btn" id="pr-launch">발사!</button>
+        <button class="btn ghost" id="pr-reset">초기화</button>
+      </div>
+    </div>
+    <div class="ctrl-side">
+      <div>
+        <div class="sim-title">포물선 운동</div>
+        <div class="sim-desc">중력을 받으며 날아가는 물체의 궤적입니다. 45°에서 수평 거리가 최대가 된다는 거, 확인해보세요!</div>
+      </div>
+      <div class="sliders">
+        <div class="sg">
+          <div class="sg-head"><span class="sg-label">초기 속도 v₀</span><span class="sg-val" id="pr-V-v">20 m/s</span></div>
+          <input type="range" id="pr-V" min="5" max="60" step="1" value="20">
+        </div>
+        <div class="sg">
+          <div class="sg-head"><span class="sg-label">발사 각도 θ</span><span class="sg-val" id="pr-A-v">45 °</span></div>
+          <input type="range" id="pr-A" min="5" max="85" step="1" value="45">
+        </div>
+        <div class="sg">
+          <div class="sg-head"><span class="sg-label">중력 g</span><span class="sg-val" id="pr-G-v">9.8 m/s²</span></div>
+          <input type="range" id="pr-G" min="1" max="25" step="0.1" value="9.8">
+        </div>
+      </div>
+      <div class="readouts">
+        <div class="ro"><span class="ro-lbl">최대 높이</span><span class="ro-val c-blue" id="rd-pr-H">10.2 m</span></div>
+        <div class="ro"><span class="ro-lbl">수평 거리 R</span><span class="ro-val c-blue" id="rd-pr-R">40.8 m</span></div>
+        <div class="ro"><span class="ro-lbl">비행 시간</span><span class="ro-val c-blue" id="rd-pr-T">2.89 s</span></div>
+        <div class="ro"><span class="ro-lbl">현재 속력</span><span class="ro-val c-blue" id="rd-pr-V">20.0 m/s</span></div>
+      </div>
+      <div class="formula">
+        x = v₀cosθ · t<br>
+        y = v₀sinθ · t − ½gt²<br>
+        R = v₀²sin2θ / g
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ 파동 ════ -->
+  <div class="panel" id="p-wave">
+    <div class="cv-side">
+      <canvas id="cv-w" width="640" height="400"></canvas>
+      <div class="cv-btns">
+        <button class="btn" id="wv-play">일시정지</button>
+        <button class="btn ghost" id="wv-reset">초기화</button>
+      </div>
+    </div>
+    <div class="ctrl-side">
+      <div>
+        <div class="sim-title">파동</div>
+        <div class="sim-desc">진행파의 진폭·주파수·파장을 조절해보세요. 반사파를 추가하면 정상파(standing wave)도 만들 수 있어요.</div>
+      </div>
+      <div class="sliders">
+        <div class="sg">
+          <div class="sg-head"><span class="sg-label">진폭 A</span><span class="sg-val" id="wv-A-v">1.00</span></div>
+          <input type="range" id="wv-A" min="0.1" max="2.0" step="0.05" value="1.0">
+        </div>
+        <div class="sg">
+          <div class="sg-head"><span class="sg-label">주파수 f</span><span class="sg-val" id="wv-F-v">1.0 Hz</span></div>
+          <input type="range" id="wv-F" min="0.2" max="4.0" step="0.1" value="1.0">
+        </div>
+        <div class="sg">
+          <div class="sg-head"><span class="sg-label">파장 λ</span><span class="sg-val" id="wv-L-v">2.0 m</span></div>
+          <input type="range" id="wv-L" min="0.5" max="5.0" step="0.1" value="2.0">
+        </div>
+        <div class="sg">
+          <div class="sg-head"><span class="sg-label">반사파 진폭</span><span class="sg-val" id="wv-R-v">0.00</span></div>
+          <input type="range" id="wv-R" min="0" max="1.5" step="0.05" value="0">
+        </div>
+      </div>
+      <div class="readouts">
+        <div class="ro"><span class="ro-lbl">파속 v</span><span class="ro-val c-green" id="rd-wv-v">2.00 m/s</span></div>
+        <div class="ro"><span class="ro-lbl">주기 T</span><span class="ro-val c-green" id="rd-wv-T">1.00 s</span></div>
+        <div class="ro"><span class="ro-lbl">각진동수 ω</span><span class="ro-val c-green" id="rd-wv-w">6.28</span></div>
+        <div class="ro"><span class="ro-lbl">파수 k</span><span class="ro-val c-green" id="rd-wv-k">3.14</span></div>
+      </div>
+      <div class="formula">
+        y(x,t) = A·sin(kx − ωt)<br>
+        v = λf &nbsp;|&nbsp; k = 2π/λ<br>
+        ω = 2πf
+      </div>
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<script>
+/* ─────────────────────────────────────────────
+   탭 전환
+───────────────────────────────────────────── */
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('on'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+    btn.classList.add('on');
+    document.getElementById('p-' + btn.dataset.p).classList.add('on');
+  });
+});
+
+/* ─────────────────────────────────────────────
+   공통 유틸
+───────────────────────────────────────────── */
+function grid(ctx, w, h) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,0,0,0.045)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= w; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y = 0; y <= h; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════
+   진자 운동
+═══════════════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('cv-p');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  let paused = false, theta, omega, trail = [];
+
+  function params() {
+    return {
+      L: +document.getElementById('pnd-L').value,
+      a0: +document.getElementById('pnd-A').value * Math.PI / 180,
+      b:  +document.getElementById('pnd-B').value,
+      g:  +document.getElementById('pnd-G').value,
+    };
+  }
+  function reset() {
+    const p = params();
+    theta = p.a0; omega = 0; trail = [];
+  }
+  reset();
+
+  // slider → display
+  function bindSlider(id, valId, fmt) {
+    const el = document.getElementById(id);
+    el.addEventListener('input', () => {
+      document.getElementById(valId).textContent = fmt(el.value);
+      reset();
+    });
+  }
+  bindSlider('pnd-L','pnd-L-v', v => (+v).toFixed(2)+' m');
+  bindSlider('pnd-A','pnd-A-v', v => v+' °');
+  bindSlider('pnd-B','pnd-B-v', v => (+v).toFixed(2));
+  bindSlider('pnd-G','pnd-G-v', v => (+v).toFixed(1)+' m/s²');
+
+  document.getElementById('pnd-play').addEventListener('click', function(){
+    paused = !paused; this.textContent = paused ? '재생' : '일시정지';
+  });
+  document.getElementById('pnd-reset').addEventListener('click', reset);
+
+  // RK4
+  function step(th, om, dt, g, L, b) {
+    const f = (t, w) => -(g/L)*Math.sin(t) - b*w;
+    const k1t=om,              k1w=f(th,om);
+    const k2t=om+dt/2*k1w,    k2w=f(th+dt/2*k1t,om+dt/2*k1w);
+    const k3t=om+dt/2*k2w,    k3w=f(th+dt/2*k2t,om+dt/2*k2w);
+    const k4t=om+dt*k3w,      k4w=f(th+dt*k3t,om+dt*k3w);
+    return {
+      th: th + dt/6*(k1t+2*k2t+2*k3t+k4t),
+      om: om + dt/6*(k1w+2*k2w+2*k3w+k4w)
+    };
+  }
+
+  let prev = null;
+  function draw(ts) {
+    if (!prev) prev = ts;
+    const dt = Math.min((ts-prev)/1000, 0.033);
+    prev = ts;
+
+    if (!paused) {
+      const p = params();
+      for (let i=0; i<4; i++) {
+        const r = step(theta, omega, dt/4, p.g, p.L, p.b);
+        theta = r.th; omega = r.om;
+      }
+      const SC = 145;
+      const bx = W/2 + Math.sin(theta)*p.L*SC;
+      const by = 72  + Math.cos(theta)*p.L*SC;
+      trail.push({x:bx, y:by});
+      if (trail.length > 220) trail.shift();
+
+      const T = 2*Math.PI*Math.sqrt(p.L/p.g);
+      const E = 0.5*p.L*p.L*omega*omega + p.g*p.L*(1-Math.cos(theta));
+      document.getElementById('rd-pnd-th').textContent = (theta*180/Math.PI).toFixed(1)+'°';
+      document.getElementById('rd-pnd-T').textContent  = T.toFixed(2)+' s';
+      document.getElementById('rd-pnd-w').textContent  = omega.toFixed(2)+' rad/s';
+      document.getElementById('rd-pnd-E').textContent  = E.toFixed(3)+' J';
+    }
+
+    ctx.clearRect(0,0,W,H);
+    grid(ctx,W,H);
+
+    const p = params();
+    const SC = 145;
+    const px = W/2, py = 72;
+    const bx = px + Math.sin(theta)*p.L*SC;
+    const by = py + Math.cos(theta)*p.L*SC;
+
+    // ceiling hatch
+    ctx.save();
+    ctx.strokeStyle='#444'; ctx.lineWidth=2.5; ctx.lineCap='round';
+    for (let i=-28; i<28; i+=8) {
+      ctx.beginPath(); ctx.moveTo(px+i,14); ctx.lineTo(px+i-8,30); ctx.stroke();
+    }
+    ctx.restore();
+
+    // pivot
+    ctx.save();
+    ctx.fillStyle='#555';
+    ctx.beginPath(); ctx.arc(px,py,5,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    // equilibrium dashed line
+    ctx.save();
+    ctx.strokeStyle='rgba(0,0,0,0.12)'; ctx.lineWidth=1; ctx.setLineDash([4,5]);
+    ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px,py+p.L*SC+24); ctx.stroke();
+    ctx.restore();
+
+    // angle arc
+    if (Math.abs(theta)>0.05) {
+      ctx.save();
+      ctx.strokeStyle='rgba(184,50,39,0.45)'; ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.arc(px,py,44, Math.PI/2, Math.PI/2+theta, theta<0);
+      ctx.stroke();
+      const la = Math.PI/2 + theta/2;
+      ctx.fillStyle='rgba(184,50,39,0.7)';
+      ctx.font='13px JetBrains Mono,monospace';
+      ctx.fillText('θ', px+54*Math.cos(la), py+54*Math.sin(la));
+      ctx.restore();
+    }
+
+    // trail
+    if (trail.length>1) {
+      ctx.save();
+      for (let i=1;i<trail.length;i++) {
+        ctx.strokeStyle=`rgba(184,50,39,${(i/trail.length)*0.45})`;
+        ctx.lineWidth=1.5;
+        ctx.beginPath();
+        ctx.moveTo(trail[i-1].x,trail[i-1].y);
+        ctx.lineTo(trail[i].x,trail[i].y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // string
+    ctx.save();
+    ctx.strokeStyle='#333'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.restore();
+
+    // bob
+    const g2 = ctx.createRadialGradient(bx-4,by-4,2,bx,by,16);
+    g2.addColorStop(0,'#e74c3c'); g2.addColorStop(1,'#7b241c');
+    ctx.save();
+    ctx.fillStyle=g2;
+    ctx.shadowColor='rgba(0,0,0,0.2)'; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.arc(bx,by,16,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    // energy bar
+    const p2 = params();
+    const maxE = p2.g*p2.L*(1-Math.cos(p2.a0))+0.05;
+    const curE = 0.5*p2.L*p2.L*omega*omega + p2.g*p2.L*(1-Math.cos(theta));
+    const bw=180, bh=7, bx2=W-200, by2=H-28;
+    ctx.save();
+    ctx.fillStyle='rgba(0,0,0,0.07)';
+    ctx.beginPath(); ctx.roundRect(bx2,by2,bw,bh,3); ctx.fill();
+    ctx.fillStyle='#b83227';
+    ctx.beginPath(); ctx.roundRect(bx2,by2,Math.min(bw,bw*curE/maxE),bh,3); ctx.fill();
+    ctx.fillStyle='#888'; ctx.font='10px Noto Sans KR,sans-serif';
+    ctx.fillText('에너지',bx2,by2-5);
+    ctx.restore();
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+/* ═══════════════════════════════════════════════
+   포물선 운동
+═══════════════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('cv-pr');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  let traj=[], idx=0, running=false;
+
+  function params() {
+    return {
+      v0: +document.getElementById('pr-V').value,
+      th: +document.getElementById('pr-A').value * Math.PI/180,
+      g:  +document.getElementById('pr-G').value,
+    };
+  }
+  function bindSlider(id,vid,fmt) {
+    const el=document.getElementById(id);
+    el.addEventListener('input',()=>{ document.getElementById(vid).textContent=fmt(el.value); resetPr(); });
+  }
+  bindSlider('pr-V','pr-V-v',v=>v+' m/s');
+  bindSlider('pr-A','pr-A-v',v=>v+' °');
+  bindSlider('pr-G','pr-G-v',v=>(+v).toFixed(1)+' m/s²');
+
+  function makeTraj() {
+    const {v0,th,g}=params();
+    const vx=v0*Math.cos(th), vy=v0*Math.sin(th);
+    const T=2*vy/g, N=240;
+    const pts=[];
+    for(let i=0;i<=N;i++) {
+      const t=i/N*T;
+      pts.push({x:vx*t, y:vy*t-0.5*g*t*t, t});
+    }
+    return pts;
+  }
+
+  function updateStaticRO() {
+    const {v0,th,g}=params();
+    const vy=v0*Math.sin(th);
+    document.getElementById('rd-pr-H').textContent=(vy*vy/(2*g)).toFixed(1)+' m';
+    document.getElementById('rd-pr-R').textContent=(v0*v0*Math.sin(2*th)/g).toFixed(1)+' m';
+    document.getElementById('rd-pr-T').textContent=(2*vy/g).toFixed(2)+' s';
+    document.getElementById('rd-pr-V').textContent=v0.toFixed(1)+' m/s';
+  }
+
+  function getScale(tr) {
+    const mx=tr[tr.length-1].x, my=Math.max(...tr.map(p=>p.y));
+    const mg=52;
+    return Math.min((W-mg*2-20)/(mx||1), (H-mg*2-50)/(my||1));
+  }
+
+  const OX=56, OY=H-52;
+
+  function drawAxes(tr,sc) {
+    const mx=tr[tr.length-1].x, my=Math.max(...tr.map(p=>p.y));
+    ctx.save();
+    ctx.strokeStyle='#333'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(OX-8,OY); ctx.lineTo(OX+mx*sc+24,OY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(OX,OY+8); ctx.lineTo(OX,OY-my*sc-24); ctx.stroke();
+    ctx.fillStyle='#666'; ctx.font='11px Noto Sans KR';
+    ctx.fillText('x (m)',OX+mx*sc+26,OY+4);
+    ctx.fillText('y (m)',OX+6,OY-my*sc-26);
+
+    const tx=Math.pow(10,Math.floor(Math.log10(mx/4)));
+    for(let x=0;x<=mx+tx;x+=tx) {
+      const px=OX+x*sc;
+      ctx.beginPath(); ctx.moveTo(px,OY-4); ctx.lineTo(px,OY+4); ctx.stroke();
+      ctx.fillText(x.toFixed(0),px-6,OY+16);
+    }
+    const ty=Math.pow(10,Math.floor(Math.log10(my/3||1)));
+    for(let y=ty;y<=my+ty;y+=ty) {
+      const py=OY-y*sc;
+      ctx.beginPath(); ctx.moveTo(OX-4,py); ctx.lineTo(OX+4,py); ctx.stroke();
+      ctx.fillText(y.toFixed(0),OX-32,py+4);
+    }
+    ctx.restore();
+  }
+
+  function drawIdle() {
+    ctx.clearRect(0,0,W,H);
+    grid(ctx,W,H);
+    const tr=makeTraj(), sc=getScale(tr);
+    const {v0,th}=params();
+
+    // ghost path
+    ctx.save();
+    ctx.strokeStyle='rgba(30,95,163,0.15)'; ctx.lineWidth=2; ctx.setLineDash([5,4]);
+    ctx.beginPath();
+    tr.forEach((p,i)=>{ const px=OX+p.x*sc,py=OY-p.y*sc; i?ctx.lineTo(px,py):ctx.moveTo(px,py); });
+    ctx.stroke(); ctx.restore();
+
+    drawAxes(tr,sc);
+
+    // launch arrow
+    const alen=38;
+    ctx.save();
+    ctx.strokeStyle='#1e5fa3'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(OX,OY); ctx.lineTo(OX+alen*Math.cos(th),OY-alen*Math.sin(th)); ctx.stroke();
+    ctx.fillStyle='#1e5fa3'; ctx.font='11px JetBrains Mono';
+    ctx.fillText(v0+' m/s',OX+alen*Math.cos(th)+5,OY-alen*Math.sin(th)-3);
+    ctx.restore();
+
+    // ball
+    ctx.save();
+    ctx.fillStyle='#1e5fa3'; ctx.shadowColor='rgba(0,0,0,0.15)'; ctx.shadowBlur=8;
+    ctx.beginPath(); ctx.arc(OX,OY,10,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function resetPr() {
+    running=false; idx=0; traj=[];
+    document.getElementById('pr-launch').textContent='발사!';
+    drawIdle(); updateStaticRO();
+  }
+  resetPr();
+
+  document.getElementById('pr-launch').addEventListener('click', function(){
+    if(!running && idx===0) {
+      traj=makeTraj(); running=true; idx=0;
+      this.textContent='다시 발사';
+      animPr();
+    } else { resetPr(); }
+  });
+  document.getElementById('pr-reset').addEventListener('click', resetPr);
+
+  function animPr() {
+    if(!running) return;
+    ctx.clearRect(0,0,W,H); grid(ctx,W,H);
+    const sc=getScale(traj);
+    const {v0,th,g}=params();
+    drawAxes(traj,sc);
+
+    // path drawn so far
+    if(idx>1) {
+      ctx.save();
+      ctx.strokeStyle='rgba(30,95,163,0.35)'; ctx.lineWidth=2;
+      ctx.beginPath();
+      for(let i=0;i<=idx;i++) {
+        const px=OX+traj[i].x*sc, py=OY-traj[i].y*sc;
+        i?ctx.lineTo(px,py):ctx.moveTo(px,py);
+      }
+      ctx.stroke(); ctx.restore();
+    }
+
+    const cur=traj[idx];
+    const bx=OX+cur.x*sc, by=OY-cur.y*sc;
+    const vx=v0*Math.cos(th);
+    const vy=v0*Math.sin(th)-g*cur.t;
+    const spd=Math.sqrt(vx*vx+vy*vy);
+
+    // velocity arrow
+    ctx.save();
+    ctx.strokeStyle='rgba(30,95,163,0.5)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+vx*1.1,by-vy*1.1); ctx.stroke();
+    ctx.restore();
+
+    // ball
+    const gr=ctx.createRadialGradient(bx-3,by-3,1,bx,by,10);
+    gr.addColorStop(0,'#5dade2'); gr.addColorStop(1,'#1a5276');
+    ctx.save();
+    ctx.fillStyle=gr; ctx.shadowColor='rgba(0,0,0,0.2)'; ctx.shadowBlur=8;
+    ctx.beginPath(); ctx.arc(bx,by,10,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    document.getElementById('rd-pr-V').textContent=spd.toFixed(1)+' m/s';
+    document.getElementById('rd-pr-T').textContent=cur.t.toFixed(2)+' s';
+    document.getElementById('rd-pr-H').textContent=Math.max(0,cur.y).toFixed(1)+' m';
+    document.getElementById('rd-pr-R').textContent=cur.x.toFixed(1)+' m';
+
+    idx++;
+    if(idx<traj.length) {
+      requestAnimationFrame(animPr);
+    } else {
+      running=false;
+      // landing marker
+      const last=traj[traj.length-1];
+      ctx.save();
+      ctx.fillStyle='#b83227'; ctx.font='bold 12px Noto Sans KR';
+      ctx.fillText('착지! (' +last.x.toFixed(1)+'m)', OX+last.x*sc-20, OY-14);
+      ctx.restore();
+    }
+  }
+})();
+
+/* ═══════════════════════════════════════════════
+   파동
+═══════════════════════════════════════════════ */
+(function(){
+  const canvas = document.getElementById('cv-w');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  let paused=false, t=0;
+
+  function params() {
+    return {
+      A:  +document.getElementById('wv-A').value,
+      f:  +document.getElementById('wv-F').value,
+      wl: +document.getElementById('wv-L').value,
+      rA: +document.getElementById('wv-R').value,
+    };
+  }
+  function bindSlider(id,vid,fmt) {
+    const el=document.getElementById(id);
+    el.addEventListener('input',()=>document.getElementById(vid).textContent=fmt(el.value));
+  }
+  bindSlider('wv-A','wv-A-v',v=>(+v).toFixed(2));
+  bindSlider('wv-F','wv-F-v',v=>(+v).toFixed(1)+' Hz');
+  bindSlider('wv-L','wv-L-v',v=>(+v).toFixed(1)+' m');
+  bindSlider('wv-R','wv-R-v',v=>(+v).toFixed(2));
+
+  document.getElementById('wv-play').addEventListener('click',function(){
+    paused=!paused; this.textContent=paused?'재생':'일시정지';
+  });
+  document.getElementById('wv-reset').addEventListener('click',()=>{ t=0; });
+
+  const midY=H/2, SX=75, SY=72, OX=42;
+
+  let prev=null;
+  function draw(ts) {
+    if(!prev) prev=ts;
+    const dt=(ts-prev)/1000; prev=ts;
+    if(!paused) t+=dt;
+
+    const {A,f,wl,rA}=params();
+    const om=2*Math.PI*f, k=2*Math.PI/wl;
+    const spd=f*wl, T=1/f;
+
+    document.getElementById('rd-wv-v').textContent=spd.toFixed(2)+' m/s';
+    document.getElementById('rd-wv-T').textContent=T.toFixed(2)+' s';
+    document.getElementById('rd-wv-w').textContent=om.toFixed(2)+' rad/s';
+    document.getElementById('rd-wv-k').textContent=k.toFixed(2)+' /m';
+
+    ctx.clearRect(0,0,W,H);
+    grid(ctx,W,H);
+
+    // axes
+    ctx.save();
+    ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(OX-4,midY); ctx.lineTo(W-16,midY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(OX,midY+14); ctx.lineTo(OX,midY-A*SY-28); ctx.stroke();
+    ctx.fillStyle='#888'; ctx.font='11px JetBrains Mono,monospace';
+    ctx.fillText('x (m)',W-38,midY-8);
+    ctx.fillText('y',OX+4,midY-A*SY-30);
+
+    // x ticks
+    const maxX=(W-OX-16)/SX;
+    for(let x=0;x<=maxX;x+=wl/2) {
+      const px=OX+x*SX;
+      ctx.strokeStyle='rgba(0,0,0,0.2)';
+      ctx.beginPath(); ctx.moveTo(px,midY-4); ctx.lineTo(px,midY+4); ctx.stroke();
+      if(x>0) ctx.fillText(x.toFixed(1),px-8,midY+16);
+    }
+    ctx.restore();
+
+    // amplitude guide lines
+    ctx.save();
+    ctx.strokeStyle='rgba(26,107,60,0.2)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(OX,midY-A*SY); ctx.lineTo(W-16,midY-A*SY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(OX,midY+A*SY); ctx.lineTo(W-16,midY+A*SY); ctx.stroke();
+    ctx.fillStyle='rgba(26,107,60,0.5)'; ctx.font='11px JetBrains Mono';
+    ctx.fillText('A='+A.toFixed(2),OX+4,midY-A*SY-5);
+    ctx.restore();
+
+    // wavelength bracket
+    const lEnd=OX+wl*SX;
+    if(lEnd<W-30) {
+      const by2=midY+A*SY+20;
+      ctx.save();
+      ctx.strokeStyle='rgba(0,0,0,0.25)'; ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.moveTo(OX,by2); ctx.lineTo(lEnd,by2);
+      ctx.moveTo(OX,by2-4); ctx.lineTo(OX,by2+4);
+      ctx.moveTo(lEnd,by2-4); ctx.lineTo(lEnd,by2+4);
+      ctx.stroke();
+      ctx.fillStyle='#777'; ctx.font='11px JetBrains Mono';
+      ctx.fillText('λ='+wl.toFixed(1)+'m',(OX+lEnd)/2-18,by2+14);
+      ctx.restore();
+    }
+
+    // draw wave helper
+    function waveLine(color, lw, dash, fn) {
+      ctx.save();
+      ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.lineJoin='round';
+      if(dash) ctx.setLineDash(dash);
+      ctx.beginPath();
+      let first=true;
+      for(let px=OX;px<=W-16;px++) {
+        const x=(px-OX)/SX;
+        const py=midY - fn(x)*SY;
+        first?ctx.moveTo(px,py):ctx.lineTo(px,py);
+        first=false;
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 진행파
+    waveLine('#1e5fa3',2.5,null, x=>A*Math.sin(k*x-om*t));
+
+    if(rA>0.01) {
+      // 반사파
+      waveLine('#1a6b3c',2,[7,4], x=>rA*Math.sin(k*x+om*t));
+      // 합성파
+      waveLine('rgba(184,50,39,0.8)',2.5,null, x=>A*Math.sin(k*x-om*t)+rA*Math.sin(k*x+om*t));
+
+      // legend
+      ctx.save();
+      ctx.font='11px Noto Sans KR,sans-serif';
+      const lx=W-115, ly=H-58;
+      ctx.fillStyle='#fff'; ctx.fillRect(lx-6,ly-14,110,56);
+      ctx.strokeStyle='rgba(0,0,0,0.1)'; ctx.lineWidth=1;
+      ctx.strokeRect(lx-6,ly-14,110,56);
+      ctx.fillStyle='#1e5fa3'; ctx.fillText('━ 진행파',lx,ly);
+      ctx.fillStyle='#1a6b3c'; ctx.fillText('╌ 반사파',lx,ly+18);
+      ctx.fillStyle='#b83227'; ctx.fillText('━ 합성파',lx,ly+36);
+      ctx.restore();
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
