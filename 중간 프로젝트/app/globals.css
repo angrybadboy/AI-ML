@@ -1,0 +1,114 @@
+@import "tailwindcss";
+@import "../styles/theme.css";
+
+/* Tailwind v4 — color/font tokens 노출 (선택적 사용)
+   주: 컬러는 .skin 클래스가 var(--*)로 직접 적용한다.
+   여기는 Tailwind 유틸리티에서 var(--*)을 짧게 쓰고 싶을 때만 사용. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-bg-3: var(--bg-3);
+  --color-bg-4: var(--bg-4);
+  --color-ink: var(--ink);
+  --color-ink-deep: var(--ink-deep);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+}
+
+html {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font-serif);
+}
+
+/* 호버 transform 금지 원칙. 라운드/그림자도 기본 0.
+   Tailwind/UA 기본을 살짝 비활성화. */
+button, a {
+  border-radius: 0;
+}
+
+/* 포커스 — 빨간 박스 금지, 헤어라인 톤 유지 */
+:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   반응형 — 360 (모바일) / 768 (태블릿) / 1440 (데스크탑 기본)
+   인라인 스타일을 덮어쓰기 위해 !important 사용.
+   디자인 핸드오프 §7 원칙대로 — Today 본문 18/1.85, Feed 1-col 등.
+   ============================================================ */
+
+@media (max-width: 1024px) {
+  /* 1024 이하부터 1-col로 떨어지는 그리드 */
+  .gg-grid-2col,
+  .gg-grid-5fr-7fr,
+  .gg-grid-4fr-8fr,
+  .gg-auth-split {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* 본문 padding 축소 */
+  .gg-quote-main {
+    padding: 56px 20px 64px !important;
+  }
+  /* 본문 paragraph 축소 — 핸드오프 §7 */
+  .gg-quote-body {
+    font-size: 18px !important;
+    line-height: 1.85 !important;
+  }
+  /* 큰 타이틀 축소 */
+  h1.gg-h1-large {
+    font-size: 40px !important;
+  }
+  /* Feed 카드, Profile 글 그리드 — 1-col */
+  .gg-grid-3col {
+    grid-template-columns: 1fr !important;
+  }
+  /* Profile stats 4-col → 2-col */
+  .gg-grid-4col {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  /* GGNav 좌우 padding 축소 + 가운데 메뉴 간격 축소 */
+  header.gg-nav {
+    padding: 16px 20px !important;
+  }
+  .gg-nav-items {
+    gap: 18px !important;
+  }
+  /* Auth 좌측 인용 패널 숨김 (오른쪽 폼만) */
+  .gg-auth-quote {
+    display: none !important;
+  }
+  /* 일반 main padding 축소 */
+  .gg-page-main {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* 진짜 작은 화면 — 더 줄임 */
+  .gg-quote-main {
+    padding: 40px 16px 56px !important;
+  }
+  h1.gg-h1-large {
+    font-size: 32px !important;
+  }
+  .gg-grid-4col {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}

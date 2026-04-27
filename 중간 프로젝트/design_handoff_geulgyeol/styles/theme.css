@@ -1,0 +1,133 @@
+/* ============================================================
+   글결 — Unified Theme System
+   data-theme="light" / data-theme="dark"
+   ============================================================ */
+
+:root,
+[data-theme="light"] {
+  /* paper / surface */
+  --bg:           #F4F3EF;   /* base paper */
+  --bg-2:         #ECEAE3;   /* surface */
+  --bg-3:         #E1E5E9;   /* mist */
+  --bg-4:         #C9D0D6;   /* fog */
+
+  /* ink (text on paper) */
+  --ink:          #1F2630;
+  --ink-deep:     #0F141B;
+  --ink-2:        #4F5862;
+  --ink-3:        #8D96A0;
+  --ink-4:        #C9D0D6;
+
+  /* accent — cool blue */
+  --accent:       #4A6B8A;
+  --accent-soft:  #6E8AA6;
+
+  /* hairlines */
+  --rule:         rgba(31, 38, 48, 0.10);
+  --rule-strong:  rgba(31, 38, 48, 0.22);
+
+  /* button reverse */
+  --btn-bg:       #0F141B;
+  --btn-fg:       #F4F3EF;
+
+  /* grain (paper) */
+  --grain-color:  rgba(31,38,48,0.04);
+  --grain-blend:  multiply;
+  --grain-opacity: 0.35;
+
+  --is-dark: 0;
+}
+
+[data-theme="dark"] {
+  --bg:           #0B0F16;
+  --bg-2:         #11171F;
+  --bg-3:         #161D27;
+  --bg-4:         #1E2632;
+
+  --ink:          #B5BBC5;       /* body */
+  --ink-deep:     #F0EEE8;       /* heading "moon" */
+  --ink-2:        #6B7585;
+  --ink-3:        #4A5568;
+  --ink-4:        #2A3340;
+
+  --accent:       #8FA8C2;
+  --accent-soft:  #5C7390;
+
+  --rule:         rgba(240, 238, 232, 0.08);
+  --rule-strong:  rgba(240, 238, 232, 0.20);
+
+  --btn-bg:       #F0EEE8;
+  --btn-fg:       #0B0F16;
+
+  --grain-color:  rgba(240,238,232,0.03);
+  --grain-blend:  screen;
+  --grain-opacity: 0.20;
+
+  --is-dark: 1;
+}
+
+/* ===== type ===== */
+:root {
+  --font-serif: "Noto Serif KR", "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --font-sans:  "Inter Tight", "Pretendard", "Apple SD Gothic Neo", "Helvetica Neue", system-ui, sans-serif;
+  --font-mono:  "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px;
+  --s-6:32px; --s-7:48px; --s-8:64px; --s-9:96px; --s-10:128px;
+}
+
+* { box-sizing: border-box; }
+
+.skin {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  position: relative;
+}
+.skin .accent  { color: var(--accent); }
+.skin .muted   { color: var(--ink-2); }
+.skin .faint   { color: var(--ink-3); }
+.skin .heading { color: var(--ink-deep); }
+.skin .surface { background: var(--bg-2); }
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hairline {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  margin: 0;
+}
+
+.grain {
+  position: relative;
+}
+.grain::after {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: var(--grain-blend);
+  background-image: radial-gradient(var(--grain-color) 1px, transparent 1px);
+  background-size: 3px 3px;
+}
+
+/* fog / glow */
+.fog {
+  position: relative;
+  overflow: hidden;
+}
+.fog::before {
+  content: "";
+  position: absolute; inset: -20%;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 20% 20%, color-mix(in oklab, var(--accent) 18%, transparent), transparent 70%),
+    radial-gradient(70% 60% at 85% 80%, color-mix(in oklab, var(--accent-soft) 14%, transparent), transparent 70%);
+  filter: blur(60px);
+  opacity: 0.7;
+}
