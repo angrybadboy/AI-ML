@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { getFeedPosts } from "@/lib/feed";
 import { getMySavedItems } from "@/lib/profile";
+import { getMyPaymentHistory, type PaymentLog } from "@/lib/billing";
 import { ProfileTabs, type ProfileTab } from "@/components/profile/ProfileTabs";
+import { CancelButton } from "@/components/payment/CancelButton";
 import { SignOutButton } from "./SignOutButton";
 
 export const dynamic = "force-dynamic";
@@ -27,10 +29,10 @@ export default async function MePage({ searchParams }: { searchParams: SP }) {
   const tab = parseTab(sp.tab);
 
   const supabase = await createClient();
-  const [profileRes, savedCountRes, writtenCountRes] = await Promise.all([
+  const [profileRes, savedCountRes, writtenCountRes, paymentHistory] = await Promise.all([
     supabase
       .from("profiles")
-      .select("nickname, created_at, subscription_status")
+      .select("nickname, created_at, subscription_status, subscription_expires_at")
       .eq("id", user.id)
       .maybeSingle(),
     supabase
@@ -41,12 +43,17 @@ export default async function MePage({ searchParams }: { searchParams: SP }) {
       .from("user_posts")
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id),
+    getMyPaymentHistory(user.id, 5),
   ]);
 
   const nickname = profileRes.data?.nickname ?? user.email?.split("@")[0] ?? "글결 회원";
   const sinceISO = (profileRes.data?.created_at ?? user.created_at).slice(0, 10);
   const since = sinceISO.replaceAll("-", " · ");
-  const isPremium = profileRes.data?.subscription_status === "premium";
+  const expiresAt = profileRes.data?.subscription_expires_at ?? null;
+  const isPremium =
+    profileRes.data?.subscription_status === "premium" &&
+    expiresAt !== null &&
+    new Date(expiresAt) > new Date();
   const savedCount = savedCountRes.count ?? 0;
   const writtenCount = writtenCountRes.count ?? 0;
   const diaryCount = 0; // Phase 4+ 구현 예정
@@ -159,6 +166,13 @@ export default async function MePage({ searchParams }: { searchParams: SP }) {
         </div>
       </section>
 
+      {/* 멤버십 섹션 */}
+      <MembershipSection
+        isPremium={isPremium}
+        expiresAt={expiresAt}
+        history={paymentHistory}
+      />
+
       {/* 탭 본문 */}
       <section style={{ padding: "48px 0" }}>
         {tab === "saved" && <SavedTab userId={user.id} />}
@@ -166,6 +180,268 @@ export default async function MePage({ searchParams }: { searchParams: SP }) {
         {tab === "diary" && <DiaryPlaceholder />}
       </section>
     </main>
+  );
+}
+
+function MembershipSection({
+  isPremium,
+  expiresAt,
+  history,
+}: {
+  isPremium: boolean;
+  expiresAt: string | null;
+  history: PaymentLog[];
+}) {
+  return (
+    <section
+      style={{
+        padding: "64px 0",
+        borderBottom: "1px solid var(--rule)",
+      }}
+    >
+      <div
+        className="eyebrow accent"
+        style={{ marginBottom: 24 }}
+      >
+        ― 멤버십
+      </div>
+      <h2
+        className="heading"
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontSize: 36,
+          fontWeight: 400,
+          margin: "0 0 24px",
+          letterSpacing: "-0.015em",
+        }}
+      >
+        {isPremium ? "프리미엄 회원이세요." : "지금은 무료 회원이에요."}
+      </h2>
+
+      {isPremium ? (
+        <PremiumBlock expiresAt={expiresAt} history={history} />
+      ) : (
+        <FreeBlock history={history} />
+      )}
+    </section>
+  );
+}
+
+function PremiumBlock({
+  expiresAt,
+  history,
+}: {
+  expiresAt: string | null;
+  history: PaymentLog[];
+}) {
+  const expiresLabel = expiresAt
+    ? new Date(expiresAt).toISOString().slice(0, 10).replaceAll("-", " · ")
+    : null;
+  const approvedHistory = history.filter((h) => h.status === "approved").slice(0, 3);
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 64,
+      }}
+      className="gg-grid-2col"
+    >
+      <div>
+        <p
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: 17,
+            color: "var(--ink-2)",
+            lineHeight: 1.85,
+            margin: "0 0 16px",
+            maxWidth: 420,
+          }}
+        >
+          {expiresLabel
+            ? `${expiresLabel} 까지 함께합니다.`
+            : "구독이 활성화되어 있어요."}
+          <br />
+          언제든 가만히 떠나실 수 있어요.
+        </p>
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            color: "var(--ink-3)",
+            letterSpacing: "0.12em",
+            marginBottom: 24,
+          }}
+        >
+          ― 샌드박스 결제 — 실제 청구는 일어나지 않습니다
+        </div>
+        <CancelButton />
+      </div>
+
+      <div>
+        <div
+          className="eyebrow faint"
+          style={{ marginBottom: 16 }}
+        >
+          ― 최근 결제 내역
+        </div>
+        {approvedHistory.length === 0 ? (
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              color: "var(--ink-3)",
+              letterSpacing: "0.12em",
+            }}
+          >
+            (아직 승인된 결제가 없어요)
+          </div>
+        ) : (
+          <ul
+            style={{
+              listStyle: "none",
+              margin: 0,
+              padding: 0,
+              borderTop: "1px solid var(--rule)",
+            }}
+          >
+            {approvedHistory.map((p) => (
+              <li
+                key={p.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  padding: "14px 0",
+                  borderBottom: "1px solid var(--rule)",
+                  fontFamily: "var(--font-sans)",
+                  fontSize: 13,
+                  color: "var(--ink-2)",
+                }}
+              >
+                <span>
+                  ₩{p.amount.toLocaleString("ko-KR")}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11,
+                    color: "var(--ink-3)",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  {new Date(p.created_at)
+                    .toISOString()
+                    .slice(0, 10)
+                    .replaceAll("-", " · ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FreeBlock({ history }: { history: PaymentLog[] }) {
+  const failedOrCanceled = history.filter(
+    (h) => h.status === "failed" || h.status === "canceled"
+  );
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 64,
+      }}
+      className="gg-grid-2col"
+    >
+      <div>
+        <p
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: 17,
+            color: "var(--ink-2)",
+            lineHeight: 1.85,
+            margin: "0 0 24px",
+            maxWidth: 420,
+          }}
+        >
+          하루 한 편을 넘는 결을 펼치고 싶다면 프리미엄으로 함께해요.
+          한 달 ₩4,900, 언제든 떠나실 수 있어요.
+        </p>
+        <Link
+          href="/premium"
+          style={{
+            background: "var(--btn-bg)",
+            color: "var(--btn-fg)",
+            border: 0,
+            padding: "14px 28px",
+            fontFamily: "var(--font-sans)",
+            fontSize: 13,
+            letterSpacing: "0.12em",
+            textDecoration: "none",
+            display: "inline-block",
+            transition: "opacity 0.15s ease",
+          }}
+        >
+          프리미엄 시작하기 →
+        </Link>
+      </div>
+
+      {failedOrCanceled.length > 0 && (
+        <div>
+          <div
+            className="eyebrow faint"
+            style={{ marginBottom: 16 }}
+          >
+            ― 지난 결제 흔적
+          </div>
+          <ul
+            style={{
+              listStyle: "none",
+              margin: 0,
+              padding: 0,
+              borderTop: "1px solid var(--rule)",
+            }}
+          >
+            {failedOrCanceled.slice(0, 3).map((p) => (
+              <li
+                key={p.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  padding: "14px 0",
+                  borderBottom: "1px solid var(--rule)",
+                  fontFamily: "var(--font-sans)",
+                  fontSize: 13,
+                  color: "var(--ink-3)",
+                }}
+              >
+                <span>
+                  ₩{p.amount.toLocaleString("ko-KR")} ·{" "}
+                  {p.status === "canceled" ? "취소" : "미승인"}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11,
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  {new Date(p.created_at)
+                    .toISOString()
+                    .slice(0, 10)
+                    .replaceAll("-", " · ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
