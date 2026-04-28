@@ -114,6 +114,10 @@ export function AuthForm({ mode }: Props) {
         provider: "google",
         options: {
           redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          // Google 매번 계정 선택 화면 띄우기
+          queryParams: {
+            prompt: "select_account",
+          },
         },
       });
       if (err) setError(friendlyError(err.message));
